@@ -21,6 +21,7 @@ const Results: React.FC<ResultsProps> = ({
   onNewBattery 
 }) => {
   const percentage = Math.round((score / total) * 100);
+  const questionsCount = total / 3; // Total de perguntas (cada pergunta vale 3 pontos)
   
   const getPerformanceMessage = () => {
     if (percentage >= 90) return "🎉 Excelente! Você arrasou!";
@@ -60,13 +61,22 @@ const Results: React.FC<ResultsProps> = ({
             </h2>
             <div className="bg-gray-50 rounded-lg p-6 space-y-3">
               <div className="text-lg">
+                <span className="font-semibold">Livro:</span> PENSE BEM Atividades Programadas 1
+              </div>
+              <div className="text-lg">
                 <span className="font-semibold">Atividade:</span> {battery}
               </div>
               <div className="text-lg">
-                <span className="font-semibold">Acertos:</span> {score} de {total}
+                <span className="font-semibold">Perguntas:</span> {questionsCount}
+              </div>
+              <div className="text-lg">
+                <span className="font-semibold">Pontuação:</span> {score} de {total} pontos
               </div>
               <div className="text-lg">
                 <span className="font-semibold">Aproveitamento:</span> {percentage}%
+              </div>
+              <div className="text-sm text-gray-600 mt-4">
+                Sistema de pontuação: 3 pontos (1ª tentativa), 2 pontos (2ª tentativa), 1 ponto (3ª tentativa)
               </div>
             </div>
           </div>

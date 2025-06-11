@@ -1,7 +1,7 @@
 
 export interface Question {
   descricao: string;
-  resposta: string;
+  resposta?: string;
   opcoes?: string[];
   figura?: string;
   quantidade?: number;

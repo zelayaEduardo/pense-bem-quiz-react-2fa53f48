@@ -20,21 +20,24 @@ const Quiz: React.FC<QuizProps> = ({ nickname, battery, onComplete, onBack }) =>
   const [score, setScore] = useState(0);
   const [showFeedback, setShowFeedback] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
+  const [attempts, setAttempts] = useState(0);
+  const [questionCompleted, setQuestionCompleted] = useState(false);
 
   const currentQuestion = questions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+  const maxPoints = questions.length * 3; // 3 pontos máximos por pergunta
 
   const handleAnswerSelect = (answer: string) => {
-    if (showFeedback) return;
+    if (showFeedback || questionCompleted) return;
     setSelectedAnswer(answer);
   };
 
   const handleSubmitAnswer = () => {
-    if (!selectedAnswer) return;
+    if (!selectedAnswer || questionCompleted) return;
 
     let correct = false;
     
-    if (currentQuestion.opcoes) {
+    if (currentQuestion.opcoes && currentQuestion.resposta) {
       // Pergunta de múltipla escolha
       correct = selectedAnswer === currentQuestion.resposta;
     } else if (currentQuestion.quantidade !== undefined) {
@@ -42,11 +45,20 @@ const Quiz: React.FC<QuizProps> = ({ nickname, battery, onComplete, onBack }) =>
       correct = parseInt(selectedAnswer) === currentQuestion.quantidade;
     }
 
+    const newAttempts = attempts + 1;
+    setAttempts(newAttempts);
     setIsCorrect(correct);
-    if (correct) {
-      setScore(score + 1);
-    }
     setShowFeedback(true);
+
+    if (correct) {
+      // Sistema de pontuação: 3 pontos na 1ª tentativa, 2 na 2ª, 1 na 3ª
+      const points = Math.max(0, 4 - newAttempts);
+      setScore(score + points);
+      setQuestionCompleted(true);
+    } else if (newAttempts >= 3) {
+      // Esgotou as 3 tentativas
+      setQuestionCompleted(true);
+    }
   };
 
   const handleNextQuestion = () => {
@@ -55,9 +67,27 @@ const Quiz: React.FC<QuizProps> = ({ nickname, battery, onComplete, onBack }) =>
       setSelectedAnswer('');
       setShowFeedback(false);
       setIsCorrect(false);
+      setAttempts(0);
+      setQuestionCompleted(false);
     } else {
-      onComplete(score + (isCorrect ? 1 : 0), questions.length);
+      onComplete(score, maxPoints);
     }
+  };
+
+  const handleTryAgain = () => {
+    setSelectedAnswer('');
+    setShowFeedback(false);
+    setIsCorrect(false);
+  };
+
+  const getCorrectAnswer = () => {
+    if (currentQuestion.resposta) {
+      return currentQuestion.resposta;
+    }
+    if (currentQuestion.quantidade !== undefined) {
+      return currentQuestion.quantidade.toString();
+    }
+    return '';
   };
 
   const renderQuestionContent = () => {
@@ -70,7 +100,7 @@ const Quiz: React.FC<QuizProps> = ({ nickname, battery, onComplete, onBack }) =>
               key={index}
               variant={selectedAnswer === option ? "default" : "outline"}
               className={`w-full p-4 text-left justify-start text-lg transition-all duration-200 ${
-                showFeedback
+                showFeedback && questionCompleted
                   ? option === currentQuestion.resposta
                     ? "bg-green-500 text-white border-green-500"
                     : selectedAnswer === option && option !== currentQuestion.resposta
@@ -81,7 +111,7 @@ const Quiz: React.FC<QuizProps> = ({ nickname, battery, onComplete, onBack }) =>
                   : "hover:bg-gray-100"
               }`}
               onClick={() => handleAnswerSelect(option)}
-              disabled={showFeedback}
+              disabled={showFeedback || questionCompleted}
             >
               {String.fromCharCode(65 + index)}) {option}
             </Button>
@@ -101,7 +131,7 @@ const Quiz: React.FC<QuizProps> = ({ nickname, battery, onComplete, onBack }) =>
                 key={num}
                 variant={selectedAnswer === num.toString() ? "default" : "outline"}
                 className={`aspect-square text-lg transition-all duration-200 ${
-                  showFeedback
+                  showFeedback && questionCompleted
                     ? num === currentQuestion.quantidade
                       ? "bg-green-500 text-white border-green-500"
                       : selectedAnswer === num.toString() && num !== currentQuestion.quantidade
@@ -112,7 +142,7 @@ const Quiz: React.FC<QuizProps> = ({ nickname, battery, onComplete, onBack }) =>
                     : "hover:bg-gray-100"
                 }`}
                 onClick={() => handleAnswerSelect(num.toString())}
-                disabled={showFeedback}
+                disabled={showFeedback || questionCompleted}
               >
                 {num}
               </Button>
@@ -145,29 +175,56 @@ const Quiz: React.FC<QuizProps> = ({ nickname, battery, onComplete, onBack }) =>
             <CardTitle className="text-2xl text-center">
               Pergunta {currentQuestionIndex + 1}
             </CardTitle>
+            <p className="text-center text-sm text-gray-600">
+              Livro: PENSE BEM Atividades Programadas 1
+            </p>
           </CardHeader>
           <CardContent className="space-y-6">
             <p className="text-xl text-center text-gray-800 leading-relaxed">
               {currentQuestion.descricao}
             </p>
 
-            {currentQuestion.imagem_url && (
-              <div className="text-center">
-                <div className="inline-block p-4 bg-gray-100 rounded-lg">
-                  <div className="w-64 h-48 bg-gray-200 rounded-lg flex items-center justify-center text-gray-500">
-                    Imagem: {currentQuestion.imagem_url}
-                  </div>
-                </div>
-              </div>
-            )}
-
             {renderQuestionContent()}
 
+            {/* Feedback */}
             {showFeedback && (
               <div className={`p-4 rounded-lg text-center text-lg font-semibold ${
                 isCorrect ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
               }`}>
-                {isCorrect ? "✅ Resposta Correta!" : `❌ Resposta Incorreta. A resposta correta é: ${currentQuestion.resposta || currentQuestion.quantidade}`}
+                {isCorrect ? (
+                  <div>
+                    <div>✅ Resposta Correta!</div>
+                    <div className="text-sm mt-2">
+                      Pontos ganhos: {Math.max(0, 4 - attempts)} / 3
+                    </div>
+                  </div>
+                ) : questionCompleted ? (
+                  <div>
+                    <div>❌ Você esgotou suas 3 tentativas.</div>
+                    <div className="text-sm mt-2">
+                      A resposta correta é: {getCorrectAnswer()}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div>❌ Resposta Incorreta.</div>
+                    <div className="text-sm mt-2">
+                      Tentativa {attempts} de 3. Tente novamente!
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Attempt indicator */}
+            {!questionCompleted && (
+              <div className="text-center text-sm text-gray-600">
+                Tentativa: {attempts + 1} / 3
+                {attempts > 0 && (
+                  <div className="text-xs mt-1">
+                    Pontos possíveis: {Math.max(0, 3 - attempts)}
+                  </div>
+                )}
               </div>
             )}
 
@@ -188,12 +245,19 @@ const Quiz: React.FC<QuizProps> = ({ nickname, battery, onComplete, onBack }) =>
                 >
                   Confirmar Resposta
                 </Button>
-              ) : (
+              ) : questionCompleted ? (
                 <Button 
                   onClick={handleNextQuestion}
                   className="px-8 py-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
                 >
                   {currentQuestionIndex < questions.length - 1 ? "Próxima Pergunta" : "Ver Resultado"}
+                </Button>
+              ) : (
+                <Button 
+                  onClick={handleTryAgain}
+                  className="px-8 py-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+                >
+                  Tentar Novamente
                 </Button>
               )}
             </div>
@@ -204,7 +268,7 @@ const Quiz: React.FC<QuizProps> = ({ nickname, battery, onComplete, onBack }) =>
         <div className="text-center">
           <div className="inline-block bg-white/90 backdrop-blur rounded-full px-6 py-3 shadow-lg">
             <span className="text-lg font-semibold text-gray-700">
-              Pontuação: {score} / {questions.length}
+              Pontuação: {score} / {maxPoints}
             </span>
           </div>
         </div>
