@@ -1,0 +1,216 @@
+
+import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { quizData } from '@/data/quizData';
+import { Question } from '@/types/quiz';
+
+interface QuizProps {
+  nickname: string;
+  battery: string;
+  onComplete: (score: number, total: number) => void;
+  onBack: () => void;
+}
+
+const Quiz: React.FC<QuizProps> = ({ nickname, battery, onComplete, onBack }) => {
+  const questions = quizData["Pense-bem Atividades Programadas 1"][battery];
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState<string>('');
+  const [score, setScore] = useState(0);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
+
+  const currentQuestion = questions[currentQuestionIndex];
+  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+
+  const handleAnswerSelect = (answer: string) => {
+    if (showFeedback) return;
+    setSelectedAnswer(answer);
+  };
+
+  const handleSubmitAnswer = () => {
+    if (!selectedAnswer) return;
+
+    let correct = false;
+    
+    if (currentQuestion.opcoes) {
+      // Pergunta de múltipla escolha
+      correct = selectedAnswer === currentQuestion.resposta;
+    } else if (currentQuestion.quantidade !== undefined) {
+      // Pergunta de contagem
+      correct = parseInt(selectedAnswer) === currentQuestion.quantidade;
+    }
+
+    setIsCorrect(correct);
+    if (correct) {
+      setScore(score + 1);
+    }
+    setShowFeedback(true);
+  };
+
+  const handleNextQuestion = () => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setSelectedAnswer('');
+      setShowFeedback(false);
+      setIsCorrect(false);
+    } else {
+      onComplete(score + (isCorrect ? 1 : 0), questions.length);
+    }
+  };
+
+  const renderQuestionContent = () => {
+    if (currentQuestion.opcoes) {
+      // Pergunta de múltipla escolha
+      return (
+        <div className="space-y-3">
+          {currentQuestion.opcoes.map((option, index) => (
+            <Button
+              key={index}
+              variant={selectedAnswer === option ? "default" : "outline"}
+              className={`w-full p-4 text-left justify-start text-lg transition-all duration-200 ${
+                showFeedback
+                  ? option === currentQuestion.resposta
+                    ? "bg-green-500 text-white border-green-500"
+                    : selectedAnswer === option && option !== currentQuestion.resposta
+                    ? "bg-red-500 text-white border-red-500"
+                    : "opacity-50"
+                  : selectedAnswer === option
+                  ? "bg-blue-500 text-white"
+                  : "hover:bg-gray-100"
+              }`}
+              onClick={() => handleAnswerSelect(option)}
+              disabled={showFeedback}
+            >
+              {String.fromCharCode(65 + index)}) {option}
+            </Button>
+          ))}
+        </div>
+      );
+    } else if (currentQuestion.quantidade !== undefined) {
+      // Pergunta de contagem
+      return (
+        <div className="space-y-4">
+          <p className="text-lg text-gray-600 text-center">
+            Digite o número de vezes que {currentQuestion.figura} aparece:
+          </p>
+          <div className="grid grid-cols-5 gap-2 max-w-md mx-auto">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+              <Button
+                key={num}
+                variant={selectedAnswer === num.toString() ? "default" : "outline"}
+                className={`aspect-square text-lg transition-all duration-200 ${
+                  showFeedback
+                    ? num === currentQuestion.quantidade
+                      ? "bg-green-500 text-white border-green-500"
+                      : selectedAnswer === num.toString() && num !== currentQuestion.quantidade
+                      ? "bg-red-500 text-white border-red-500"
+                      : "opacity-50"
+                    : selectedAnswer === num.toString()
+                    ? "bg-blue-500 text-white"
+                    : "hover:bg-gray-100"
+                }`}
+                onClick={() => handleAnswerSelect(num.toString())}
+                disabled={showFeedback}
+              >
+                {num}
+              </Button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-yellow-300 via-yellow-200 to-amber-200 p-4">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-2xl font-bold text-gray-800">
+              {nickname} - Atividade {battery}
+            </h1>
+            <div className="text-lg font-semibold text-gray-700">
+              {currentQuestionIndex + 1} / {questions.length}
+            </div>
+          </div>
+          <Progress value={progress} className="h-3" />
+        </div>
+
+        {/* Question Card */}
+        <Card className="mb-6 shadow-xl border-0 bg-white/95 backdrop-blur">
+          <CardHeader>
+            <CardTitle className="text-2xl text-center">
+              Pergunta {currentQuestionIndex + 1}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <p className="text-xl text-center text-gray-800 leading-relaxed">
+              {currentQuestion.descricao}
+            </p>
+
+            {currentQuestion.imagem_url && (
+              <div className="text-center">
+                <div className="inline-block p-4 bg-gray-100 rounded-lg">
+                  <div className="w-64 h-48 bg-gray-200 rounded-lg flex items-center justify-center text-gray-500">
+                    Imagem: {currentQuestion.imagem_url}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {renderQuestionContent()}
+
+            {showFeedback && (
+              <div className={`p-4 rounded-lg text-center text-lg font-semibold ${
+                isCorrect ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+              }`}>
+                {isCorrect ? "✅ Resposta Correta!" : `❌ Resposta Incorreta. A resposta correta é: ${currentQuestion.resposta || currentQuestion.quantidade}`}
+              </div>
+            )}
+
+            <div className="flex justify-between items-center pt-4">
+              <Button 
+                onClick={onBack}
+                variant="outline"
+                className="px-6 py-2"
+              >
+                ← Voltar
+              </Button>
+
+              {!showFeedback ? (
+                <Button 
+                  onClick={handleSubmitAnswer}
+                  disabled={!selectedAnswer}
+                  className="px-8 py-2 bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600"
+                >
+                  Confirmar Resposta
+                </Button>
+              ) : (
+                <Button 
+                  onClick={handleNextQuestion}
+                  className="px-8 py-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                >
+                  {currentQuestionIndex < questions.length - 1 ? "Próxima Pergunta" : "Ver Resultado"}
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Score Display */}
+        <div className="text-center">
+          <div className="inline-block bg-white/90 backdrop-blur rounded-full px-6 py-3 shadow-lg">
+            <span className="text-lg font-semibold text-gray-700">
+              Pontuação: {score} / {questions.length}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Quiz;
