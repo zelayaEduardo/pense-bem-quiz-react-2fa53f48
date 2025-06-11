@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { quizData } from '@/data/quizData';
-import { Question } from '@/types/quiz';
+import { Question, HistoryEntry } from '@/types/quiz';
 
 interface QuizProps {
   nickname: string;
@@ -26,6 +25,23 @@ const Quiz: React.FC<QuizProps> = ({ nickname, battery, onComplete, onBack }) =>
   const currentQuestion = questions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
   const maxPoints = questions.length * 3; // 3 pontos máximos por pergunta
+
+  const saveToHistory = (finalScore: number, totalPoints: number) => {
+    const historyEntry: HistoryEntry = {
+      id: Date.now().toString(),
+      nickname,
+      battery,
+      score: finalScore,
+      total: totalPoints,
+      percentage: Math.round((finalScore / totalPoints) * 100),
+      completedAt: new Date().toISOString()
+    };
+
+    const existingHistory = localStorage.getItem(`quiz-history-${battery}`);
+    const history: HistoryEntry[] = existingHistory ? JSON.parse(existingHistory) : [];
+    history.push(historyEntry);
+    localStorage.setItem(`quiz-history-${battery}`, JSON.stringify(history));
+  };
 
   const handleAnswerSelect = (answer: string) => {
     if (showFeedback || questionCompleted) return;
@@ -70,6 +86,7 @@ const Quiz: React.FC<QuizProps> = ({ nickname, battery, onComplete, onBack }) =>
       setAttempts(0);
       setQuestionCompleted(false);
     } else {
+      saveToHistory(score, maxPoints);
       onComplete(score, maxPoints);
     }
   };

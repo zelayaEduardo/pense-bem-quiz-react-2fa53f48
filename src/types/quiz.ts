@@ -5,7 +5,6 @@ export interface Question {
   opcoes?: string[];
   figura?: string;
   quantidade?: number;
-  imagem_url?: string;
 }
 
 export interface Battery {
@@ -23,4 +22,14 @@ export interface GameState {
   score: number;
   answers: string[];
   isCompleted: boolean;
+}
+
+export interface HistoryEntry {
+  id: string;
+  nickname: string;
+  battery: string;
+  score: number;
+  total: number;
+  percentage: number;
+  completedAt: string;
 }

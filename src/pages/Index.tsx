@@ -4,9 +4,10 @@ import NicknameForm from '@/components/NicknameForm';
 import BatterySelector from '@/components/BatterySelector';
 import Quiz from '@/components/Quiz';
 import Results from '@/components/Results';
+import History from '@/components/History';
 import { GameState } from '@/types/quiz';
 
-type GamePhase = 'nickname' | 'battery' | 'quiz' | 'results';
+type GamePhase = 'nickname' | 'battery' | 'quiz' | 'results' | 'history';
 
 const Index = () => {
   const [gamePhase, setGamePhase] = useState<GamePhase>('nickname');
@@ -19,6 +20,7 @@ const Index = () => {
     isCompleted: false
   });
   const [quizResults, setQuizResults] = useState({ score: 0, total: 0 });
+  const [selectedHistoryBattery, setSelectedHistoryBattery] = useState('');
 
   const handleNicknameSubmit = (nickname: string) => {
     setGameState(prev => ({ ...prev, nickname }));
@@ -35,6 +37,11 @@ const Index = () => {
       isCompleted: false
     }));
     setGamePhase('quiz');
+  };
+
+  const handleViewHistory = (battery: string) => {
+    setSelectedHistoryBattery(battery);
+    setGamePhase('history');
   };
 
   const handleQuizComplete = (score: number, total: number) => {
@@ -74,6 +81,10 @@ const Index = () => {
     setGamePhase('battery');
   };
 
+  const handleBackFromHistory = () => {
+    setGamePhase('battery');
+  };
+
   console.log('Current game phase:', gamePhase);
   console.log('Game state:', gameState);
 
@@ -87,6 +98,7 @@ const Index = () => {
         <BatterySelector 
           nickname={gameState.nickname}
           onSelectBattery={handleBatterySelect}
+          onViewHistory={handleViewHistory}
           onBack={handleBackToNickname}
         />
       )}
@@ -97,6 +109,13 @@ const Index = () => {
           battery={gameState.selectedBattery}
           onComplete={handleQuizComplete}
           onBack={handleBackToBattery}
+        />
+      )}
+
+      {gamePhase === 'history' && (
+        <History 
+          battery={selectedHistoryBattery}
+          onBack={handleBackFromHistory}
         />
       )}
       
