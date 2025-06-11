@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { HistoryEntry } from '@/types/quiz';
@@ -10,14 +10,57 @@ interface HistoryProps {
 }
 
 const History: React.FC<HistoryProps> = ({ battery, onBack }) => {
-  const getHistory = (): HistoryEntry[] => {
-    const stored = localStorage.getItem(`quiz-history-${battery}`);
-    return stored ? JSON.parse(stored) : [];
-  };
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const history = getHistory().sort((a, b) => 
-    new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
-  );
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        console.log('Buscando histórico do banco para a bateria:', battery);
+        
+        const response = await fetch('http://localhost:3001/api/history');
+        if (!response.ok) {
+          throw new Error('Erro ao buscar histórico do servidor');
+        }
+        
+        const allHistory = await response.json();
+        console.log('Histórico completo recebido:', allHistory);
+        
+        // Filtrar apenas os resultados desta bateria
+        const batteryHistory = allHistory
+          .filter((entry: any) => entry.battery === battery)
+          .map((entry: any) => ({
+            ...entry,
+            id: entry.id.toString(),
+            completedAt: new Date(entry.completedAt).toISOString()
+          }))
+          .sort((a: HistoryEntry, b: HistoryEntry) => 
+            new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+          );
+        
+        console.log('Histórico filtrado para bateria', battery, ':', batteryHistory);
+        setHistory(batteryHistory);
+      } catch (error) {
+        console.error('Erro ao buscar histórico:', error);
+        setError('Erro ao carregar histórico do servidor');
+        
+        // Fallback para localStorage em caso de erro
+        const stored = localStorage.getItem(`quiz-history-${battery}`);
+        const localHistory = stored ? JSON.parse(stored) : [];
+        setHistory(localHistory.sort((a: HistoryEntry, b: HistoryEntry) => 
+          new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+        ));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, [battery]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -37,6 +80,20 @@ const History: React.FC<HistoryProps> = ({ battery, onBack }) => {
     return "text-purple-600";
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-yellow-300 via-yellow-200 to-amber-200 p-4">
+        <div className="max-w-4xl mx-auto">
+          <Card className="shadow-2xl border-0 bg-white/95 backdrop-blur">
+            <CardContent className="p-8 text-center">
+              <div className="text-xl text-gray-600">Carregando histórico...</div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-300 via-yellow-200 to-amber-200 p-4">
       <div className="max-w-4xl mx-auto">
@@ -48,6 +105,11 @@ const History: React.FC<HistoryProps> = ({ battery, onBack }) => {
             <CardDescription className="text-lg text-gray-600">
               Livro: PENSE BEM Atividades Programadas 1
             </CardDescription>
+            {error && (
+              <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded">
+                {error} - Exibindo dados locais como fallback
+              </div>
+            )}
           </CardHeader>
           
           <CardContent className="space-y-6">

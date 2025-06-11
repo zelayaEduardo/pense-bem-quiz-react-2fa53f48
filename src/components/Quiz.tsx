@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { quizData } from '@/data/quizData';
-import { Question, HistoryEntry } from '@/types/quiz';
+import { Question } from '@/types/quiz';
 
 interface QuizProps {
   nickname: string;
@@ -26,21 +26,51 @@ const Quiz: React.FC<QuizProps> = ({ nickname, battery, onComplete, onBack }) =>
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
   const maxPoints = questions.length * 3; // 3 pontos máximos por pergunta
 
-  const saveToHistory = (finalScore: number, totalPoints: number) => {
-    const historyEntry: HistoryEntry = {
-      id: Date.now().toString(),
-      nickname,
-      battery,
-      score: finalScore,
-      total: totalPoints,
-      percentage: Math.round((finalScore / totalPoints) * 100),
-      completedAt: new Date().toISOString()
-    };
+  const saveToDatabase = async (finalScore: number, totalPoints: number) => {
+    try {
+      const historyEntry = {
+        nickname,
+        battery,
+        score: finalScore,
+        total: totalPoints,
+        percentage: Math.round((finalScore / totalPoints) * 100),
+        completedAt: new Date().toISOString().slice(0, 19).replace('T', ' ') // Formato MySQL DATETIME
+      };
 
-    const existingHistory = localStorage.getItem(`quiz-history-${battery}`);
-    const history: HistoryEntry[] = existingHistory ? JSON.parse(existingHistory) : [];
-    history.push(historyEntry);
-    localStorage.setItem(`quiz-history-${battery}`, JSON.stringify(history));
+      console.log('Salvando no banco:', historyEntry);
+
+      const response = await fetch('http://localhost:3001/api/history', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(historyEntry),
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao salvar no banco de dados');
+      }
+
+      const result = await response.json();
+      console.log('Salvo com sucesso, ID:', result.id);
+    } catch (error) {
+      console.error('Erro ao salvar histórico:', error);
+      // Fallback para localStorage em caso de erro
+      const historyEntry = {
+        id: Date.now().toString(),
+        nickname,
+        battery,
+        score: finalScore,
+        total: totalPoints,
+        percentage: Math.round((finalScore / totalPoints) * 100),
+        completedAt: new Date().toISOString()
+      };
+
+      const existingHistory = localStorage.getItem(`quiz-history-${battery}`);
+      const history = existingHistory ? JSON.parse(existingHistory) : [];
+      history.push(historyEntry);
+      localStorage.setItem(`quiz-history-${battery}`, JSON.stringify(history));
+    }
   };
 
   const handleAnswerSelect = (answer: string) => {
@@ -86,7 +116,7 @@ const Quiz: React.FC<QuizProps> = ({ nickname, battery, onComplete, onBack }) =>
       setAttempts(0);
       setQuestionCompleted(false);
     } else {
-      saveToHistory(score, maxPoints);
+      saveToDatabase(score, maxPoints);
       onComplete(score, maxPoints);
     }
   };

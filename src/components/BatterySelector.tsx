@@ -19,10 +19,38 @@ const BatterySelector: React.FC<BatterySelectorProps> = ({
 }) => {
   const batteries = Object.keys(quizData["Pense-bem Atividades Programadas 1"]);
 
-  const getHistoryCount = (battery: string): number => {
-    const stored = localStorage.getItem(`quiz-history-${battery}`);
-    return stored ? JSON.parse(stored).length : 0;
+  const getHistoryCount = async (battery: string): Promise<number> => {
+    try {
+      const response = await fetch('http://localhost:3001/api/history');
+      if (!response.ok) {
+        throw new Error('Erro ao buscar histórico');
+      }
+      
+      const allHistory = await response.json();
+      const batteryHistory = allHistory.filter((entry: any) => entry.battery === battery);
+      return batteryHistory.length;
+    } catch (error) {
+      console.error('Erro ao buscar histórico:', error);
+      // Fallback para localStorage em caso de erro
+      const stored = localStorage.getItem(`quiz-history-${battery}`);
+      return stored ? JSON.parse(stored).length : 0;
+    }
   };
+
+  // Vamos usar um estado local para armazenar os counts do histórico
+  const [historyCounts, setHistoryCounts] = React.useState<{[key: string]: number}>({});
+
+  React.useEffect(() => {
+    const loadHistoryCounts = async () => {
+      const counts: {[key: string]: number} = {};
+      for (const battery of batteries) {
+        counts[battery] = await getHistoryCount(battery);
+      }
+      setHistoryCounts(counts);
+    };
+
+    loadHistoryCounts();
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-yellow-300 via-yellow-200 to-amber-200 p-4">
@@ -40,7 +68,7 @@ const BatterySelector: React.FC<BatterySelectorProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {batteries.map((battery) => {
               const questionsCount = quizData["Pense-bem Atividades Programadas 1"][battery].length;
-              const historyCount = getHistoryCount(battery);
+              const historyCount = historyCounts[battery] || 0;
               
               return (
                 <div key={battery} className="space-y-3">
